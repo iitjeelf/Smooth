@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LFJC Online Exam</title>
+<style>
+/* ---------------- CSS from 2nd code ---------------- */
+body{font-family:"SF Pro Display",Arial,sans-serif;margin:0;background:#fff;color:#000;}
+header{background:linear-gradient(145deg,#E6E6FA,#D8BFD8);color:#4B0082;text-align:center;padding:20px;font-size:36px;font-weight:700;letter-spacing:1.5px;box-shadow:0 5px #aaa;text-shadow:0 1px 2px #fff;}
+#studentEntry,#examArea{padding:20px;text-align:center;}
+.form-group{display:flex;flex-direction:row;align-items:center;justify-content:center;margin-bottom:15px;}
+.form-group label{font-size:1.15rem;font-weight:600;margin-right:10px;color:#4B0082;width:120px;text-align:right;}
+input[type="text"]{padding:10px 12px;font-size:1.1rem;border-radius:10px;border:1.5px solid #4B0082;outline:none;min-width:250px;}
+input.error{animation: glowRed 0.5s alternate infinite; border-color:red;}
+@keyframes glowRed{0%{box-shadow:0 0 5px red;}100%{box-shadow:0 0 15px red;}}
+button{position:relative;overflow:hidden;cursor:pointer;border:none;border-radius:12px;transition:all .18s ease;box-shadow:0 6px #aaa;background:linear-gradient(to bottom,#fafaff,#dcd6f7);color:#4B0082;font-weight:600;padding:10px 20px;font-size:18px;}
+button:hover{transform:translateY(-2px);box-shadow:0 8px 15px rgba(0,0,0,.28);}
+button:active{transform:translateY(3px) scale(.98);}
+.optBtn{font-size:16px;padding:8px 18px;margin:6px;border:2px solid #4B0082;background:#fff;border-radius:8px;box-shadow:0 5px #aaa;}
+.optBtn.selected{background:#32CD32;color:#fff;border-color:#2fa92f;}
+.navContainer{display:flex;justify-content:center;gap:10px;margin:10px 0;flex-wrap:wrap}
+.navBtn{font-size:16px;padding:10px 20px;border-radius:8px;color:#fff;font-weight:bold;cursor:pointer;background:linear-gradient(145deg,#1E90FF,#4682B4);}
+#markReviewBtn{background:linear-gradient(145deg,#ffb84d,#ff9900)}
+#submitBtn{background:linear-gradient(145deg,#c8b88a,#b49e60)}
+#timerEl{font-size:20px;font-weight:bold;color:#4B0082;padding:6px 12px;border-radius:6px;background:#f0f0ff;display:inline-block;transition:all .3s;}
+@keyframes blinkTimer{0%{background:#ff6666;color:#fff;}50%{background:#fff;color:#4B0082;}100%{background:#ff6666;color:#fff;}}
+#paletteContainer button{width:36px;height:36px;border-radius:50%;font-size:14px;margin:3px;border:1px solid #4B0082;background:#E6EFA;color:#4B0082;}
+#paletteContainer button.selected{background:#32CD32;color:#fff;border-color:#2fa92f}
+#paletteContainer button.reviewed{background:yellow;color:#000}
+#paletteContainer button.current{border:3px solid red}
+footer{background:#E6EFA;color:#4B0082;padding:10px;text-align:center;font-weight:bold;position:fixed;width:100%;bottom:0;}
+.sectionTitle{font-size:22px;color:#4B0082;font-weight:bold;margin-bottom:8px;}
+/* ---------- exam header flex ---------- */
+#examHeader{display:flex;justify-content:space-between;align-items:center;background:transparent;color:#000;padding:0 0 10px 0;flex-wrap:wrap;}
+#stuInfo{font-weight:bold;}
+</style>
+</head>
+<body>
+<header>LFJC ONLINE EXAMINATION</header>
+
+<!-- ---------------- STUDENT ENTRY ---------------- -->
+<div id="studentEntry">
+  <div class="form-group"><label>Name</label><input type="text" id="stuName" placeholder="Only letters & spaces"></div>
+  <div class="form-group"><label>Section</label><input type="text" id="stuSection" placeholder="Letters & digits"></div>
+  <div class="form-group"><label>Roll</label><input type="text" id="stuRoll" placeholder="Digits only"></div>
+  <div class="form-group"><label>Admission No</label><input type="text" id="stuAdm" placeholder="Digits only"></div>
+  <div class="form-group">
+    <button id="stuLoadBtn" style="display:none;">Load Exam</button>
+    <button id="stuStartBtn" style="display:none;">Start Exam</button>
+  </div>
+</div>
+
+<!-- ---------------- EXAM AREA ---------------- -->
+<div id="examArea" style="display:none;">
+  <div id="examHeader">
+    <div id="stuInfo"></div>
+    <div id="timerEl"></div>
+  </div>
+
+  <div id="questionContainer" style="text-align:center;margin-top:10px;"></div>
+
+  <div class="navContainer">
+    <button class="navBtn" id="prevBtn">⬅ Previous</button>
+    <button class="navBtn" id="markReviewBtn">Review</button>
+    <button class="navBtn" id="nextBtn">Next ➡</button>
+    <button class="navBtn" id="submitBtn">Submit Exam</button>
+  </div>
+
+  <div id="paletteContainer"></div>
+</div>
+
+<footer>LFJC@2025 All rights reserved</footer>
+
+<script>
+let answerKey = ["A","B","C","D","A","B"]; // example key
+let images = ["1.png","2.png","3.png","4.png","5.png","6.png"]; // example filenames
+
+let progress=null, timerInterval=null;
+
+// ---------- Validation ----------
+function validateInputs(){
+  const n=document.getElementById('stuName');
+  const s=document.getElementById('stuSection');
+  const r=document.getElementById('stuRoll');
+  const a=document.getElementById('stuAdm');
+
+  const validN=/^[A-Za-z ]+$/.test(n.value);
+  const validS=/^[A-Za-z0-9]+$/.test(s.value);
+  const validR=/^[0-9]+$/.test(r.value);
+  const validA=/^[0-9]+$/.test(a.value);
+
+  n.classList.toggle('error',!validN && n.value!=="");
+  s.classList.toggle('error',!validS && s.value!=="");
+  r.classList.toggle('error',!validR && r.value!=="");
+  a.classList.toggle('error',!validA && a.value!=="");
+
+  document.getElementById('stuLoadBtn').style.display=(validN && validS && validR && validA)?'inline-block':'none';
+}
+['stuName','stuSection','stuRoll','stuAdm'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',validateInputs);
+});
+
+// ---------- Load Exam ----------
+document.getElementById('stuLoadBtn').onclick=()=>{
+  if(answerKey.length!==images.length){ alert("Answer key length mismatch!"); return; }
+  document.getElementById('stuLoadBtn').style.display='none';
+  document.getElementById('stuStartBtn').style.display='inline-block';
+};
+
+// ---------- Start Exam ----------
+document.getElementById('stuStartBtn').onclick=()=>{
+  progress={
+    answers:Array(images.length).fill(null),
+    review:Array(images.length).fill(false),
+    currentIndex:0,
+    student:{
+      name:document.getElementById('stuName').value.trim(),
+      sec:document.getElementById('stuSection').value.trim(),
+      roll:document.getElementById('stuRoll').value.trim(),
+      adm:document.getElementById('stuAdm').value.trim(),
+      date:new Date().toLocaleDateString()
+    },
+    timeLeftSec:10*60
+  };
+  document.getElementById('studentEntry').style.display='none';
+  document.getElementById('examArea').style.display='block';
+  renderQuestion();
+  renderPalette();
+  startTimer();
+};
+
+// ---------- Timer ----------
+function startTimer(){
+  const tEl=document.getElementById('timerEl');
+  const info=document.getElementById('stuInfo');
+
+  timerInterval=setInterval(()=>{
+    if(progress.timeLeftSec<=0){clearInterval(timerInterval);alert("Time up!");submitExam();return;}
+    progress.timeLeftSec--;
+    const m=Math.floor(progress.timeLeftSec/60);
+    const s=progress.timeLeftSec%60;
+    tEl.textContent=`🕒 ${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+    info.innerHTML=`<b>${progress.student.name} | Sec: ${progress.student.sec} | Roll: ${progress.student.roll} | Adm: ${progress.student.adm}</b>`;
+
+    // Blink timer last 5 min, entire line last 1 min
+    tEl.style.animation='';
+    info.style.animation='';
+    if(progress.timeLeftSec<=60){
+      tEl.style.animation='blinkTimer 1s infinite';
+      info.style.animation='blinkTimer 1s infinite';
+    } else if(progress.timeLeftSec<=300){
+      tEl.style.animation='blinkTimer 1s infinite';
+    }
+  },1000);
+}
+
+// ---------- Render Question ----------
+function renderQuestion(){
+  const q=document.getElementById('questionContainer');
+  q.innerHTML=`<img src="${images[progress.currentIndex]}" style="width:100%;border-radius:10px;"><br>`;
+  ["A","B","C","D"].forEach(opt=>{
+    const b=document.createElement('button');
+    b.className='optBtn';
+    b.textContent=opt;
+    if(progress.answers[progress.currentIndex]===opt) b.classList.add('selected');
+    b.onclick=()=>{
+      progress.answers[progress.currentIndex]=opt;
+      document.querySelectorAll('.optBtn').forEach(btn=>btn.classList.remove('selected'));
+      b.classList.add('selected');
+      renderPalette();
+    };
+    q.appendChild(b);
+  });
+}
+
+// ---------- Navigation ----------
+document.getElementById('nextBtn').onclick=()=>{if(progress.currentIndex<images.length-1){progress.currentIndex++;renderQuestion();renderPalette();}};
+document.getElementById('prevBtn').onclick=()=>{if(progress.currentIndex>0){progress.currentIndex--;renderQuestion();renderPalette();}};
+document.getElementById('markReviewBtn').onclick=()=>{progress.review[progress.currentIndex]=!progress.review[progress.currentIndex];renderPalette();};
+
+// ---------- Palette ----------
+function renderPalette(){
+  const cont=document.getElementById('paletteContainer');
+  cont.innerHTML='';
+  progress.answers.forEach((ans,i)=>{
+    const b=document.createElement('button');
+    b.textContent=i+1;
+    if(i===progress.currentIndex)b.classList.add('current');
+    if(progress.review[i])b.classList.add('reviewed');
+    if(ans)b.classList.add('selected');
+    b.onclick=()=>{progress.currentIndex=i;renderQuestion();renderPalette();};
+    cont.appendChild(b);
+  });
+}
+
+// ---------- Submit ----------
+document.getElementById('submitBtn').onclick=()=>submitExam();
+function submitExam(){
+  clearInterval(timerInterval);
+  let correct=0,wrong=0,blank=0;
+  for(let i=0;i<images.length;i++){
+    const g=progress.answers[i],k=answerKey[i];
+    if(!g) blank++;
+    else if(g===k) correct++;
+    else wrong++;
+  }
+  const marks=(correct - wrong*0.25).toFixed(2);
+  alert(`Exam submitted!\nCorrect: ${correct}\nWrong: ${wrong}\nBlank: ${blank}\nTotal: ${images.length}\nMarks: ${marks}`);
+  location.reload();
+}
+</script>
+</body>
+</html>
